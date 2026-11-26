@@ -83,7 +83,7 @@ jobs:
         run: |
           {
             echo "## Solver benchmark"
-            node bench/core.ts --runs 5 --legacy-timeout 15
+            node bench/core.ts --runs 5
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

@@ -20,8 +20,9 @@ const base = "http://127.0.0.1:4175/";
 
 async function solveAndStep(page: Page, steps: number): Promise<void> {
   await page.locator("#solve").click();
-  await page.locator("#copy-moves:not([hidden])").waitFor({ timeout: 60_000 });
-  for (let i = 0; i < steps; i++) await page.locator("#next").click();
+  await page.locator("#copy-moves:enabled").waitFor({ timeout: 60_000 });
+  // Keyboard stepping, so Playwright does not scroll buttons into view.
+  for (let i = 0; i < steps; i++) await page.keyboard.press("ArrowRight");
 }
 
 async function desktop(browser: Browser, theme: string, file: string): Promise<void> {
@@ -33,6 +34,9 @@ async function desktop(browser: Browser, theme: string, file: string): Promise<v
   await page.goto(base);
   await page.locator("#layer-path").check();
   await solveAndStep(page, 17);
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
   await page.mouse.move(0, 0);
   await page.waitForTimeout(1600); // let the result flash fade
   await page.screenshot({ path: join(outDir, file) });
@@ -62,6 +66,9 @@ try {
     shots.push({ file: "mobile-start.png", title: "Mobile, start" });
     await page.locator("#solve").scrollIntoViewIfNeeded();
     await solveAndStep(page, 9);
+    await page.locator("#solve").evaluate((el) => {
+      (el as HTMLElement).blur();
+    });
     await page.waitForTimeout(1600);
     await page.screenshot({ path: join(outDir, "mobile-solved.png") });
     shots.push({ file: "mobile-solved.png", title: "Mobile, after solving" });

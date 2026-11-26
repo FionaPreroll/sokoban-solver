@@ -32,38 +32,6 @@ It is a breadth-first search over (player position, box positions), so the first
 
 Both prunings only remove states that cannot lead to a solution, so solution lengths are unchanged. The fuzz tests check this against a deliberately naive reference solver on random levels.
 
-## Performance, before and after
-
-Measured on 2026-11-26 against the **unmodified original code** (kept in [`legacy/`](legacy/)); both find solutions of the same length.
-
-**In the browser** (Chromium, from clicking the solve button to the result being shown; `pnpm bench:browser`). The original page also paused for a timer every 100 states, which is included here because users paid for it:
-
-| Level     | Moves | Before (original page) |  After | Speed-up |
-| --------- | ----: | ---------------------: | -----: | -------: |
-| classic   |    53 |                  3.0 s |  64 ms |      47× |
-| warmup    |    18 |                 708 ms |  64 ms |      11× |
-| staircase |    34 |                 87.2 s |  61 ms |   1,430× |
-| cross     |    38 |                  3.7 s | 114 ms |      32× |
-| zigzag    |    55 |                  4.2 s | 114 ms |      37× |
-| mirror    |    21 |              > 2 min ¹ | 321 ms |   > 370× |
-| courtyard |   105 |              > 2 min ¹ | 323 ms |   > 370× |
-
-¹ Stopped after 120 s.
-
-**Solver core only** (Node 22, `pnpm bench`). Here the original's timer pauses are removed, so this compares the pure algorithms. Median of 7 runs for the new solver, one run for the original:
-
-| Level     | Moves |  Before |  After | Speed-up | States searched, before → after |
-| --------- | ----: | ------: | -----: | -------: | ------------------------------: |
-| classic   |    53 |  656 ms | 2.2 ms |     302× |                  57,995 → 1,758 |
-| warmup    |    18 |  158 ms | 1.2 ms |     133× |                  13,554 → 1,113 |
-| staircase |    34 |  66.0 s | 2.9 ms |  23,107× |                 567,493 → 6,517 |
-| cross     |    38 |  921 ms |  11 ms |      85× |                 71,752 → 18,625 |
-| zigzag    |    55 |   1.1 s |  12 ms |      92× |                 83,924 → 20,037 |
-| mirror    |    21 | 155.5 s | 263 ms |     591× |               553,902 → 224,301 |
-| courtyard |   105 | 632.0 s | 173 ms |   3,655× |             4,161,740 → 254,960 |
-
-The original also needed about 1.5 GB of memory for "courtyard". The CI build job runs the core benchmark on every push and writes the table into the run's summary.
-
 ## Development
 
 Requires Node.js 22.18 or newer and pnpm (`corepack enable` picks the version from `package.json`).
@@ -78,11 +46,10 @@ pnpm test:fuzz      # property-based fuzz tests (FUZZ_RUNS=…, FUZZ_SEED=… to
 pnpm test:soak      # soak test (SOAK_SECONDS=…)
 pnpm test:e2e       # Playwright browser tests (desktop and mobile), needs a build
 pnpm screenshots    # showcase screenshots of dist/ into dist/screenshots/
-pnpm bench          # core benchmark against the unmodified legacy code
-pnpm bench:browser  # click-to-result benchmark in Chromium, needs a build
+pnpm bench          # solver timings for the built-in levels
 ```
 
-Layout: `src/core/` holds the level model, game rules and solver (no DOM), `src/ui/` the page, `src/solver.worker.ts` the worker, `build/` the Vite plugins for build info and third-party licences, `legacy/` the original version for the benchmark.
+Layout: `src/core/` holds the level model, game rules and solver (no DOM), `src/ui/` the page, `src/solver.worker.ts` the worker, `build/` the Vite plugins for build info and third-party licences.
 
 Every direct dependency needs an entry in [`third-party.json`](third-party.json) saying what it is used for; the build and the unit tests fail otherwise.
 

@@ -24,7 +24,17 @@
   </head>
   <body>
     <header class="masthead">
-      <h1>Sokoban Solver</h1>
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="0.5" y="0.5" width="23" height="23" class="bm-frame" />
+          <rect x="5" y="5" width="14" height="14" class="bm-box" />
+          <path d="M5 5 19 19M19 5 5 19" class="bm-brace" />
+        </svg>
+        <div>
+          <h1>Sokoban Solver</h1>
+          <p class="tagline">Draw a level. Get the shortest solution. Watch it.</p>
+        </div>
+      </div>
       <div class="masthead-tools">
         <fieldset class="theme-picker" id="theme-picker">
           <legend class="visually-hidden">Colour theme</legend>
@@ -36,27 +46,36 @@
     <main class="layout">
       <section class="board-panel" id="board-panel" aria-label="Board">
         <div class="board-frame" id="board-frame">
+          <div class="solve-bar" aria-hidden="true"></div>
           <canvas id="board" aria-label="Sokoban board" role="img"></canvas>
         </div>
-        <p class="result" id="result" aria-live="polite"></p>
+        <p class="result" id="result" aria-live="polite">
+          <span class="result-label" id="result-label">Ready</span>
+          <span class="result-stats" id="result-stats"></span>
+        </p>
       </section>
 
-      <div class="steps">
-        <section class="step" id="step-level" aria-labelledby="step-level-title">
+      <ol class="steps">
+        <li class="step" id="step-level" aria-labelledby="step-level-title">
           <h2 id="step-level-title"><span class="step-num">1</span> Pick or draw a level</h2>
-          <div class="row">
+          <div class="field">
             <label for="preset">Level</label>
             <select id="preset"></select>
           </div>
-          <div class="row tools" role="radiogroup" aria-label="Editor tool" id="tools"></div>
-          <p class="hint" id="tool-hint">Choose a tile, then tap or drag on the board to paint it.</p>
-          <div class="row">
-            <label for="width">Size</label>
+          <div class="tools" role="radiogroup" aria-label="Editor tool" id="tools"></div>
+          <div class="field size-field">
+            <span class="field-label" id="size-label">Size</span>
             <input type="number" id="width" min="3" max="30" inputmode="numeric" aria-label="Width" />
-            <span aria-hidden="true">×</span>
+            <span aria-hidden="true" class="times">×</span>
             <input type="number" id="height" min="3" max="30" inputmode="numeric" aria-label="Height" />
-            <button type="button" class="btn" id="undo" disabled>Undo</button>
+            <button type="button" class="btn btn-quiet" id="undo" disabled>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 3 2 7l4 4V8h4a3 3 0 0 1 0 6H8v2h2a5 5 0 0 0 0-10H6z" />
+              </svg>
+              Undo
+            </button>
           </div>
+          <p class="issues" id="issues" aria-live="polite"></p>
           <details class="io">
             <summary>Level as text</summary>
             <p class="hint">
@@ -67,66 +86,80 @@
             <textarea id="level-text" rows="9" spellcheck="false" autocomplete="off" aria-label="Level text"></textarea>
             <div class="row">
               <button type="button" class="btn" id="load-text">Load text</button>
-              <button type="button" class="btn" id="copy-text">Copy</button>
+              <button type="button" class="btn btn-quiet" id="copy-text">Copy</button>
             </div>
           </details>
-          <p class="issues" id="issues" aria-live="polite"></p>
-        </section>
+        </li>
 
-        <section class="step" id="step-solve" aria-labelledby="step-solve-title">
+        <li class="step" id="step-solve" aria-labelledby="step-solve-title">
           <h2 id="step-solve-title"><span class="step-num">2</span> Solve</h2>
-          <p class="hint">Finds a solution with the fewest possible moves. Runs in the background.</p>
           <div class="row">
             <button type="button" class="btn btn-primary" id="solve">Solve</button>
-            <button type="button" class="btn" id="stop" hidden>Stop</button>
+            <button type="button" class="btn" id="stop" disabled>Stop</button>
           </div>
-          <p class="progress" id="progress" aria-live="polite"></p>
-        </section>
+          <p class="progress" id="progress" aria-live="polite">Finds a solution with the fewest possible moves.</p>
+        </li>
 
-        <section class="step" id="step-watch" aria-labelledby="step-watch-title">
+        <li class="step" id="step-watch" aria-labelledby="step-watch-title">
           <h2 id="step-watch-title"><span class="step-num">3</span> Watch the solution</h2>
-          <div class="row transport">
-            <button type="button" class="btn" id="reset" aria-label="Back to start" title="Back to start">⏮</button>
-            <button type="button" class="btn" id="prev" aria-label="Previous move" title="Previous move">◀</button>
-            <button type="button" class="btn btn-play" id="play" aria-label="Play">Play</button>
-            <button type="button" class="btn" id="next" aria-label="Next move" title="Next move">▶</button>
+          <div class="transport" role="group" aria-label="Playback">
+            <button type="button" class="btn btn-icon" id="reset" aria-label="Back to start" title="Back to start">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3h2v10H3zM13 3v10L6 8z" /></svg>
+            </button>
+            <button type="button" class="btn btn-icon" id="prev" aria-label="Previous move" title="Previous move (←)">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3v10L3 8zM11 3h2v10h-2z" /></svg>
+            </button>
+            <button type="button" class="btn btn-icon btn-play" id="play" aria-label="Play" title="Play (Space)">
+              <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11L13.5 8z" /></svg>
+              <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z" /></svg>
+            </button>
+            <button type="button" class="btn btn-icon" id="next" aria-label="Next move" title="Next move (→)">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3h2v10H3zM6 3v10l7-5z" /></svg>
+            </button>
+            <button type="button" class="btn btn-icon" id="end" aria-label="Jump to end" title="Jump to end">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3v10l7-5zM11 3h2v10h-2z" /></svg>
+            </button>
           </div>
-          <div class="row">
-            <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Position in solution" />
+          <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Position in solution" />
+          <div class="field">
+            <span class="field-label" id="speed-label" title="moves per second">Speed</span>
+            <div class="segmented" id="speed" role="radiogroup" aria-labelledby="speed-label"></div>
+            <span class="unit">moves/s</span>
           </div>
-          <div class="row">
-            <label for="speed">Speed</label>
-            <input type="number" id="speed" value="4" min="1" max="60" inputmode="numeric" />
-            <span>moves per second</span>
+          <div class="moves-box">
+            <p class="moves" id="moves" aria-label="Solution in LURD notation" tabindex="0">
+              <span class="placeholder">The moves appear here after solving. Lower case walks, upper case pushes.</span>
+            </p>
+            <button type="button" class="btn btn-quiet btn-small" id="copy-moves" disabled>Copy</button>
           </div>
-          <div class="moves-wrap">
-            <p class="moves" id="moves" aria-label="Solution in LURD notation"></p>
-            <button type="button" class="btn btn-small" id="copy-moves" hidden>Copy moves</button>
-          </div>
-        </section>
+        </li>
 
-        <section class="step" id="step-layers" aria-labelledby="step-layers-title">
+        <li class="step" id="step-layers" aria-labelledby="step-layers-title">
           <h2 id="step-layers-title"><span class="step-num">4</span> Layers</h2>
-          <div class="row layers">
-            <label><input type="checkbox" id="layer-path" /> Solution path</label>
-            <label><input type="checkbox" id="layer-player" checked /> Player</label>
-            <label><input type="checkbox" id="layer-dead" /> Dead squares</label>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" id="layer-path" /> <span>Solution path</span></label>
+            <label class="chip"><input type="checkbox" id="layer-player" checked /> <span>Player</span></label>
+            <label class="chip"><input type="checkbox" id="layer-dead" /> <span>Dead squares</span></label>
           </div>
-        </section>
-      </div>
+        </li>
+      </ol>
     </main>
 
     <footer class="colophon">
       <span>GPL-3.0-only</span>
       <a id="footer-source" href="https://github.com/FionaPreroll/sokoban-solver">Source</a>
-      <button type="button" class="link-button" id="footer-about">About &amp; licenses</button>
+      <button type="button" class="link-button" id="footer-about">About &amp; licences</button>
     </footer>
 
     <dialog id="about" aria-labelledby="about-title">
       <div class="dialog-body" id="about-body">
         <header class="dialog-head">
           <h2 id="about-title">About</h2>
-          <button type="button" class="btn btn-icon" data-close aria-label="Close">×</button>
+          <button type="button" class="btn btn-icon" data-close aria-label="Close">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3.5 2 8 6.5 12.5 2 14 3.5 9.5 8l4.5 4.5-1.5 1.5L8 9.5 3.5 14 2 12.5 6.5 8 2 3.5z" />
+            </svg>
+          </button>
         </header>
         <div id="about-content"></div>
         <footer class="dialog-foot">

@@ -175,13 +175,13 @@ export function validateLevel(level: Level): LevelIssue[] {
 export function describeIssue(issue: LevelIssue): string {
   switch (issue.kind) {
     case "no-player":
-      return "Place a player first.";
+      return "No player yet. Place one with the Player tile.";
     case "no-boxes":
-      return "The level has no boxes, so it is already solved.";
+      return "No boxes, so the level is already solved.";
     case "too-many-boxes":
-      return `${String(issue.boxes)} boxes but only ${String(issue.targets)} targets: not solvable.`;
+      return `${String(issue.boxes)} boxes but ${String(issue.targets)} targets: not solvable.`;
     case "box-target-mismatch":
-      return `${String(issue.boxes)} boxes and ${String(issue.targets)} targets: every box must end on a target.`;
+      return `${String(issue.boxes)} boxes, ${String(issue.targets)} targets: extra targets stay empty.`;
   }
 }
 

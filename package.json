@@ -30,7 +30,6 @@
     "test:soak": "vitest run --project soak",
     "test:e2e": "playwright test",
     "bench": "node bench/core.ts",
-    "bench:browser": "node bench/browser.ts",
     "screenshots": "node scripts/screenshots.ts"
   },
   "devDependencies": {

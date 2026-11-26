@@ -25,6 +25,10 @@ import { applyTheme, initialTheme, mountThemePicker, readPalette, saveTheme, typ
 const LEVEL_STORAGE_KEY = "sokoban-solver:level";
 const CUSTOM = "custom";
 const MAX_UNDO = 100;
+const SPEEDS = [1, 2, 4, 8, 16, 32] as const;
+const DEFAULT_SPEED = 4;
+const SOLVE_HINT = "Finds a solution with the fewest possible moves.";
+const MOVES_PLACEHOLDER = "The moves appear here after solving. Lower case walks, upper case pushes.";
 
 const TOOLS: readonly { id: Tool | null; label: string }[] = [
   { id: null, label: "Off" },
@@ -95,7 +99,10 @@ export class App {
     play: byId("play", HTMLButtonElement),
     next: byId("next", HTMLButtonElement),
     scrub: byId("scrub", HTMLInputElement),
-    speed: byId("speed", HTMLInputElement),
+    speed: byId("speed", HTMLElement),
+    end: byId("end", HTMLButtonElement),
+    resultLabel: byId("result-label", HTMLElement),
+    resultStats: byId("result-stats", HTMLElement),
     moves: byId("moves", HTMLElement),
     copyMoves: byId("copy-moves", HTMLButtonElement),
     layerPath: byId("layer-path", HTMLInputElement),
@@ -158,7 +165,7 @@ export class App {
       input.addEventListener("change", () => {
         if (input.checked) this.setTool(t.id);
       });
-      const canvas = el("canvas", { attrs: { width: "80", height: "80", "aria-hidden": "true" } });
+      const canvas = el("canvas", { attrs: { width: "88", height: "88", "aria-hidden": "true" } });
       this.toolCanvases.push({ tool: t.id, canvas });
       this.ui.tools.append(
         el("label", { className: t.id === null ? "tool tool-off" : "tool" }, [
@@ -175,21 +182,26 @@ export class App {
     for (const { tool, canvas } of this.toolCanvases) {
       const ctx = canvas.getContext("2d");
       if (!ctx) continue;
-      ctx.setTransform(2, 0, 0, 2, 0, 0);
-      ctx.clearRect(0, 0, 40, 40);
+      const size = canvas.width;
+      ctx.clearRect(0, 0, size, size);
       if (tool === null) {
+        // "Off": a pointer arrow, i.e. look, don't paint.
         ctx.fillStyle = this.palette.page;
-        ctx.fillRect(0, 0, 40, 40);
-        ctx.strokeStyle = this.palette.ink;
-        ctx.lineWidth = 2;
+        ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = this.palette.ink;
         ctx.beginPath();
-        ctx.moveTo(13, 13);
-        ctx.lineTo(27, 27);
-        ctx.moveTo(27, 13);
-        ctx.lineTo(13, 27);
-        ctx.stroke();
+        const u = size / 44;
+        ctx.moveTo(15 * u, 10 * u);
+        ctx.lineTo(15 * u, 33 * u);
+        ctx.lineTo(20.5 * u, 27.5 * u);
+        ctx.lineTo(24.5 * u, 35 * u);
+        ctx.lineTo(28 * u, 33.3 * u);
+        ctx.lineTo(24 * u, 26 * u);
+        ctx.lineTo(31 * u, 26 * u);
+        ctx.closePath();
+        ctx.fill();
       } else {
-        drawTile(ctx, 0, 0, 40, this.palette, toolTile(tool));
+        drawTile(ctx, 0, 0, size, this.palette, toolTile(tool));
       }
     }
   }
@@ -259,8 +271,10 @@ export class App {
     this.ui.undo.disabled = this.undoStack.length === 0;
     if (document.activeElement !== this.ui.text) this.ui.text.value = serializeLevel(this.level).join("\n");
     const issues = validateLevel(this.level).filter((i) => i.kind !== "no-boxes");
-    this.ui.issues.textContent = issues.map(describeIssue).join(" ");
-    this.ui.progress.textContent = "";
+    const issueText = issues.map(describeIssue).join(" ");
+    this.ui.issues.textContent = issueText;
+    this.ui.issues.title = issueText;
+    this.ui.progress.textContent = SOLVE_HINT;
     this.render();
   }
 
@@ -326,7 +340,8 @@ export class App {
     }
     const level = this.level;
     this.ui.solve.disabled = true;
-    this.ui.stop.hidden = false;
+    this.ui.stop.disabled = false;
+    this.ui.panel.classList.add("is-solving");
     this.ui.progress.textContent = "Searching…";
     this.setResult("Searching…", "");
     this.markStep();
@@ -336,6 +351,7 @@ export class App {
       this.setResult("Searching…", text);
     });
     this.job = job;
+    this.markStep();
     let result: SolveResult;
     try {
       result = await job.result;
@@ -353,7 +369,8 @@ export class App {
     if (this.job !== job) return; // superseded
     this.job = null;
     this.ui.solve.disabled = false;
-    this.ui.stop.hidden = true;
+    this.ui.stop.disabled = true;
+    this.ui.panel.classList.remove("is-solving");
     if (level !== this.level) return;
     this.showResult(result);
   }
@@ -422,8 +439,8 @@ export class App {
     this.solution = null;
     this.index = 0;
     this.moveSpans = [];
-    this.ui.moves.replaceChildren();
-    this.ui.copyMoves.hidden = true;
+    this.ui.moves.replaceChildren(el("span", { className: "placeholder", text: MOVES_PLACEHOLDER }));
+    this.ui.copyMoves.disabled = true;
     this.setResult("", "");
     this.markStep();
   }
@@ -451,21 +468,30 @@ export class App {
       this.pause();
       this.goTo(target);
     });
-    this.ui.speed.addEventListener("change", () => {
-      this.ui.speed.value = String(this.speed());
+    this.ui.end.addEventListener("click", () => {
+      this.pause();
+      this.goTo(Number.MAX_SAFE_INTEGER);
     });
+    for (const v of SPEEDS) {
+      const input = el("input", {
+        attrs: { type: "radio", name: "speed", value: String(v), "aria-label": `${String(v)} moves per second` },
+      });
+      input.checked = v === DEFAULT_SPEED;
+      this.ui.speed.append(el("label", {}, [input, el("span", { text: String(v) })]));
+    }
     this.ui.copyMoves.addEventListener("click", () => {
       if (!this.solution) return;
       void navigator.clipboard.writeText(toLurd(this.solution.moves, this.solution.pushes)).then(() => {
         this.ui.copyMoves.textContent = "Copied";
-        setTimeout(() => (this.ui.copyMoves.textContent = "Copy moves"), 1200);
+        setTimeout(() => (this.ui.copyMoves.textContent = "Copy"), 1200);
       });
     });
   }
 
   private speed(): number {
-    const v = Math.round(Number(this.ui.speed.value));
-    return Number.isFinite(v) ? Math.max(1, Math.min(60, v)) : 4;
+    const checked = this.ui.speed.querySelector<HTMLInputElement>("input:checked");
+    const v = Number(checked?.value ?? DEFAULT_SPEED);
+    return Number.isFinite(v) && v > 0 ? v : DEFAULT_SPEED;
   }
 
   private togglePlay(): void {
@@ -506,22 +532,30 @@ export class App {
     const lurd = toLurd(this.solution.moves, this.solution.pushes);
     this.moveSpans = Array.from({ length: lurd.length }, (_, k) => el("span", { text: lurd.charAt(k) }));
     this.ui.moves.replaceChildren(...this.moveSpans);
-    this.ui.copyMoves.hidden = lurd.length === 0;
+    this.ui.copyMoves.disabled = lurd.length === 0;
+    if (lurd.length === 0) {
+      this.ui.moves.replaceChildren(el("span", { className: "placeholder", text: "Nothing to do: already solved." }));
+    }
   }
 
   private updateTransport(): void {
     const s = this.solution;
     const n = s?.moves.length ?? 0;
     const playing = this.playTimer !== null;
-    this.ui.play.textContent = playing ? "Pause" : this.index > 0 && this.index < n ? "Resume" : "Play";
-    this.ui.play.setAttribute("aria-label", this.ui.play.textContent);
+    // Only the icon changes (same button size), so nothing next to it moves.
+    const label = playing ? "Pause" : this.index > 0 && this.index < n ? "Resume" : "Play";
+    this.ui.play.classList.toggle("is-playing", playing);
+    this.ui.play.setAttribute("aria-label", label);
+    this.ui.play.title = `${label} (Space)`;
     this.ui.play.disabled = n === 0;
     this.ui.next.disabled = n === 0 || this.index >= n;
+    this.ui.end.disabled = n === 0 || this.index >= n;
     this.ui.prev.disabled = n === 0 || this.index === 0;
     this.ui.reset.disabled = n === 0 || this.index === 0;
     this.ui.scrub.disabled = n === 0;
     this.ui.scrub.max = String(n);
     this.ui.scrub.value = String(this.index);
+    this.ui.scrub.style.setProperty("--pct", `${String(n === 0 ? 0 : (this.index / n) * 100)}%`);
   }
 
   // ---------- layers & keyboard ----------
@@ -557,6 +591,12 @@ export class App {
       } else if (event.key === "ArrowLeft") {
         this.pause();
         this.goTo(this.index - 1);
+      } else if (event.key === "Home") {
+        this.pause();
+        this.goTo(0);
+      } else if (event.key === "End") {
+        this.pause();
+        this.goTo(Number.MAX_SAFE_INTEGER);
       } else if (event.key === " " && !(target instanceof HTMLButtonElement)) {
         event.preventDefault();
         this.togglePlay();
@@ -568,12 +608,28 @@ export class App {
 
   // ---------- rendering ----------
 
-  private setResult(left: string, right: string): void {
-    if (left === "" && right === "") {
-      this.ui.result.replaceChildren();
-      return;
+  /** Empty label = idle: show "Ready" and the level's dimensions. */
+  private setResult(label: string, stats: string, solved = false): void {
+    if (label === "") {
+      const boxes = this.level.box.reduce((a, b) => a + b, 0);
+      label = "Ready";
+      stats = `${String(this.level.width)}×${String(this.level.height)} · ${String(boxes)} ${boxes === 1 ? "box" : "boxes"}`;
     }
-    this.ui.result.replaceChildren(el("strong", { text: left }), el("span", { text: right }));
+    this.ui.resultLabel.textContent = label;
+    this.ui.resultStats.textContent = stats;
+    this.ui.resultStats.title = stats;
+    this.ui.result.classList.toggle("is-solved", solved);
+  }
+
+  /** Scrolls the moves box (not the page) so the current move stays in view. */
+  private keepCurrentMoveVisible(): void {
+    const span = this.moveSpans[Math.max(0, this.index - 1)];
+    if (!span) return;
+    const box = this.ui.moves;
+    const top = span.offsetTop - box.offsetTop;
+    if (top < box.scrollTop + 4 || top + span.offsetHeight > box.scrollTop + box.clientHeight - 4) {
+      box.scrollTop = Math.max(0, top - box.clientHeight / 2);
+    }
   }
 
   private markStep(): void {
@@ -606,12 +662,17 @@ export class App {
             : this.index === 0
               ? `Solution: ${String(n)} moves`
               : `Move ${String(this.index)} / ${String(n)}`;
-      const stats = `${String(s.pushCount)} pushes · ${fmtInt(s.result.expanded)} states · ${fmtMs(s.result.elapsedMs)}`;
+      const stats = isSmallScreen()
+        ? `${String(s.pushCount)} pushes · ${fmtMs(s.result.elapsedMs)}`
+        : `${String(s.pushCount)} pushes · ${fmtInt(s.result.expanded)} states · ${fmtMs(s.result.elapsedMs)}`;
       const tail = this.index === 0 || solved ? stats : s.pushes[this.index - 1] ? "push" : "walk";
-      this.setResult(head, tail);
+      this.setResult(head, tail, solved);
       this.moveSpans.forEach((span, k) => {
         span.className = k < this.index - 1 ? "done" : k === this.index - 1 ? "now" : "";
       });
+      this.keepCurrentMoveVisible();
+    } else if (!this.job) {
+      this.setResult("", "");
     }
     this.updateTransport();
   }

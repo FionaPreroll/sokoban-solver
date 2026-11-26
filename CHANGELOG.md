@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Browser tests for every function, plus checks that nothing on the page moves, resizes or
+  overflows while solving, playing, stepping, scrubbing, editing or switching themes
+  (element positions and Chromium's layout-shift API), and pixel checks that the board shows
+  exactly the game state at every step in every theme.
+- Jump-to-end button, Home/End keys, and the speed as a 1–32 moves/s switch.
+- A solving indicator on the board and a level summary ("8×8 · 4 boxes") in the result line.
+
 ### Changed
 
 - Author and contact (About dialog, copyright headers) are now Fiona <fipreroll+app@gmail.com>.
+- Refined design: crate detail on boxes, icon transport controls, steps joined by a timeline,
+  toggle chips for layers, a logo, and a double rule under the header.
+- `pnpm bench` now only times the current solver.
+
+### Removed
+
+- The original 2024 code (`legacy/`), the before/after benchmarks and the README section about them.
+
+### Fixed
+
+- Seams between wall tiles on screens with fractional pixel ratios (cells are now whole device pixels).
+- Boxes were drawn slightly differently after the solution-path layer had been shown.
+- Play/Pause/Resume changed the button width and shifted the buttons next to it.
+- The result line could wrap to two lines on phones and push the page down.
+- The moves list and progress text grew with their content and pushed the sections below.
+- Long warnings could widen the page on phones.
+- Checked layer chips and the selected tool label changed width.
+- Step 2 was not highlighted while a search was running.
 
 ## [2.0.0] - 2026-11-26
 
@@ -42,7 +69,7 @@ type, a plain board in a thin frame, flat square controls and the five tile colo
 - Solver core: same move-optimal breadth-first search, but with compact state keys, an index queue,
   parent pointers instead of copied paths, and pruning of dead squares and 2×2 freeze deadlocks.
   Results are identical in length (checked by fuzz tests); speed-ups range from 11× (small levels, in the browser) to over 20,000×
-  (core, one level); see README.
+  (core, one level).
 - Cells outside the grid count as walls, so levels no longer have to be fully enclosed.
 - The canvas scales to the screen and renders sharply on high-DPI displays.
 
