@@ -18,6 +18,32 @@ export function failOnPageErrors(page: Page): string[] {
 export async function solve(page: Page): Promise<void> {
   await page.locator("#solve").click();
   await expect(page.locator("#copy-moves")).toBeEnabled({ timeout: 30_000 });
+  await waitForScrollEnd(page);
+}
+
+/**
+ * A solved level smooth-scrolls the playback controls into view. Clicking while that
+ * runs hits whatever moved under the pointer, so wait until the page stands still.
+ */
+export async function waitForScrollEnd(page: Page): Promise<void> {
+  // Smooth scrolling can take a few frames to start, so ask for ten still frames in a row.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let y = window.scrollY;
+        let still = 0;
+        const tick = (): void => {
+          if (window.scrollY === y) still++;
+          else {
+            still = 0;
+            y = window.scrollY;
+          }
+          if (still >= 10) resolve();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
 }
 
 export async function loadLevelText(page: Page, rows: readonly string[]): Promise<void> {

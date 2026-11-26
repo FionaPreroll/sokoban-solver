@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A browser test could click a theme while the page was still smooth-scrolling to the
+  playback controls after solving, and then fail at random (about one run in twelve).
 - Seams between wall tiles on screens with fractional pixel ratios (cells are now whole device pixels).
 - Boxes were drawn slightly differently after the solution-path layer had been shown.
 - Play/Pause/Resume changed the button width and shifted the buttons next to it.
