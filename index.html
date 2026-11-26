@@ -1,58 +1,140 @@
-<!DOCTYPE html>
+<!doctype html>
 <!--
  Copyright spezifisch <spezifisch+git@gmail.com>
  SPDX-License-Identifier: GPL-3.0-only
 -->
+<html lang="en" data-theme="classic">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Draw a Sokoban level, let the browser find the shortest solution, watch it step by step."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>Sokoban Solver</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <script>
+      // Apply the saved theme before first paint to avoid a flash.
+      try {
+        var t = localStorage.getItem("sokoban-solver:theme");
+        if (t) document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <header class="masthead">
+      <h1>Sokoban Solver</h1>
+      <div class="masthead-tools">
+        <fieldset class="theme-picker" id="theme-picker">
+          <legend class="visually-hidden">Colour theme</legend>
+        </fieldset>
+        <button type="button" class="btn" id="open-about" aria-haspopup="dialog">About</button>
+      </div>
+    </header>
 
-<html lang="en">
-
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sokoban Solver</title>
-        <style>
-        canvas {
-            border: 1px solid black;
-            margin-top: 10px;
-        }
-
-        button {
-            margin-top: 10px;
-        }
-
-        </style>
-    </head>
-
-    <body>
-        <h1>Sokoban Solver</h1>
-        <canvas id="sokobanCanvas" width="320" height="320"></canvas>
-        <br>
-        <!-- Map Editor Controls -->
-        <div id="mapEditorControls" style="display: flex; align-items: center; margin-bottom: 10px;">
-            <label>Map Editor:</label>
-            <button id="exitEditMode" style="background-color: grey;">X</button>
-            <div id="colorSelectors">
-                <!-- Color buttons will be dynamically created by JavaScript -->
-            </div>
+    <main class="layout">
+      <section class="board-panel" id="board-panel" aria-label="Board">
+        <div class="board-frame" id="board-frame">
+          <canvas id="board" aria-label="Sokoban board" role="img"></canvas>
         </div>
+        <p class="result" id="result" aria-live="polite"></p>
+      </section>
 
-        <button id="nextStep">Next Step</button>
-        <button id="startAnimation">Play</button>
-        <button id="resetAnimation">Reset</button>
-        <label for="frameRate">Frame Rate:</label>
-        <input type="number" id="frameRate" value="2" min="1" max="60">
-        <br>
-        <label>BFS Solver:</label>
-        <button id="calculatePath">Calculate Path</button>
-        <button id="calculatePathDebug">..with Debug</button>
-        <button id="stopSolving" style="display:none;">Stop Solving</button>
-        <p id="bfsText"></p>
-        <br>
-        <label>Show Layers:</label>
-        <label><input type="checkbox" id="toggleBFSVisualization"> BFS Search</label>
-        <label><input type="checkbox" id="togglePlayer" checked> Player</label>
-    </body>
+      <div class="steps">
+        <section class="step" id="step-level" aria-labelledby="step-level-title">
+          <h2 id="step-level-title"><span class="step-num">1</span> Pick or draw a level</h2>
+          <div class="row">
+            <label for="preset">Level</label>
+            <select id="preset"></select>
+          </div>
+          <div class="row tools" role="radiogroup" aria-label="Editor tool" id="tools"></div>
+          <p class="hint" id="tool-hint">Choose a tile, then tap or drag on the board to paint it.</p>
+          <div class="row">
+            <label for="width">Size</label>
+            <input type="number" id="width" min="3" max="30" inputmode="numeric" aria-label="Width" />
+            <span aria-hidden="true">×</span>
+            <input type="number" id="height" min="3" max="30" inputmode="numeric" aria-label="Height" />
+            <button type="button" class="btn" id="undo" disabled>Undo</button>
+          </div>
+          <details class="io">
+            <summary>Level as text</summary>
+            <p class="hint">
+              XSB notation: <code>#</code> wall, <code>@</code> player, <code>$</code> box, <code>.</code> target,
+              <code>*</code> box on target, <code>+</code> player on target. The old <code>x _ p b o</code> notation
+              works too.
+            </p>
+            <textarea id="level-text" rows="9" spellcheck="false" autocomplete="off" aria-label="Level text"></textarea>
+            <div class="row">
+              <button type="button" class="btn" id="load-text">Load text</button>
+              <button type="button" class="btn" id="copy-text">Copy</button>
+            </div>
+          </details>
+          <p class="issues" id="issues" aria-live="polite"></p>
+        </section>
 
-    <script src="sokoban-solver.js"></script>
+        <section class="step" id="step-solve" aria-labelledby="step-solve-title">
+          <h2 id="step-solve-title"><span class="step-num">2</span> Solve</h2>
+          <p class="hint">Finds a solution with the fewest possible moves. Runs in the background.</p>
+          <div class="row">
+            <button type="button" class="btn btn-primary" id="solve">Solve</button>
+            <button type="button" class="btn" id="stop" hidden>Stop</button>
+          </div>
+          <p class="progress" id="progress" aria-live="polite"></p>
+        </section>
+
+        <section class="step" id="step-watch" aria-labelledby="step-watch-title">
+          <h2 id="step-watch-title"><span class="step-num">3</span> Watch the solution</h2>
+          <div class="row transport">
+            <button type="button" class="btn" id="reset" aria-label="Back to start" title="Back to start">⏮</button>
+            <button type="button" class="btn" id="prev" aria-label="Previous move" title="Previous move">◀</button>
+            <button type="button" class="btn btn-play" id="play" aria-label="Play">Play</button>
+            <button type="button" class="btn" id="next" aria-label="Next move" title="Next move">▶</button>
+          </div>
+          <div class="row">
+            <input type="range" id="scrub" min="0" max="0" value="0" aria-label="Position in solution" />
+          </div>
+          <div class="row">
+            <label for="speed">Speed</label>
+            <input type="number" id="speed" value="4" min="1" max="60" inputmode="numeric" />
+            <span>moves per second</span>
+          </div>
+          <div class="moves-wrap">
+            <p class="moves" id="moves" aria-label="Solution in LURD notation"></p>
+            <button type="button" class="btn btn-small" id="copy-moves" hidden>Copy moves</button>
+          </div>
+        </section>
+
+        <section class="step" id="step-layers" aria-labelledby="step-layers-title">
+          <h2 id="step-layers-title"><span class="step-num">4</span> Layers</h2>
+          <div class="row layers">
+            <label><input type="checkbox" id="layer-path" /> Solution path</label>
+            <label><input type="checkbox" id="layer-player" checked /> Player</label>
+            <label><input type="checkbox" id="layer-dead" /> Dead squares</label>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="colophon">
+      <span>GPL-3.0-only</span>
+      <a id="footer-source" href="https://github.com/FionaPreroll/sokoban-solver">Source</a>
+      <button type="button" class="link-button" id="footer-about">About &amp; licenses</button>
+    </footer>
+
+    <dialog id="about" aria-labelledby="about-title">
+      <div class="dialog-body" id="about-body">
+        <header class="dialog-head">
+          <h2 id="about-title">About</h2>
+          <button type="button" class="btn btn-icon" data-close aria-label="Close">×</button>
+        </header>
+        <div id="about-content"></div>
+        <footer class="dialog-foot">
+          <button type="button" class="btn" data-close>Close</button>
+        </footer>
+      </div>
+    </dialog>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
 </html>
-

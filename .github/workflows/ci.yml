@@ -1,0 +1,109 @@
+# Every push to main runs all checks; GitHub Pages is deployed only as the very
+# last job, after lint, unit, fuzz, soak and browser tests and the build passed.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly long soak + extra fuzzing, independent of commits.
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  lint:
+    name: Lint (tsc, ESLint, Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm lint
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm test
+
+  fuzz:
+    name: Fuzz tests
+    runs-on: ubuntu-latest
+    env:
+      FUZZ_RUNS: ${{ github.event_name == 'schedule' && 20000 || 2000 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm test:fuzz
+
+  soak:
+    name: Soak test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOAK_SECONDS: ${{ github.event_name == 'schedule' && 900 || 90 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm test:soak
+
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          browsers: "true"
+      - run: pnpm build
+      - run: pnpm test:e2e
+
+  build:
+    name: Build site and screenshots
+    needs: [lint, test, fuzz, soak, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          browsers: "true"
+      - run: pnpm build
+      # Screenshots are generated from this very build and deployed with it, never committed.
+      - run: pnpm screenshots
+      - name: Benchmark (job summary)
+        run: |
+          {
+            echo "## Solver benchmark"
+            node bench/core.ts --runs 5 --legacy-timeout 15
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

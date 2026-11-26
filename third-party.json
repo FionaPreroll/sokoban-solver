@@ -1,0 +1,22 @@
+{
+  "$comment": "Every direct dependency needs an entry here: what it is used for. The build and a unit test fail otherwise.",
+  "packages": {
+    "vite": {
+      "scope": "build",
+      "purpose": "Dev server and production build. Adds a few lines of module-loading code to the page."
+    },
+    "typescript": { "scope": "build", "purpose": "Type checking of the strict TypeScript sources." },
+    "vitest": { "scope": "test", "purpose": "Runs the unit, fuzz and soak tests." },
+    "fast-check": { "scope": "test", "purpose": "Generates random levels and move sequences for the fuzz tests." },
+    "@playwright/test": {
+      "scope": "test",
+      "purpose": "Browser tests, the browser benchmark and the showcase screenshots."
+    },
+    "eslint": { "scope": "test", "purpose": "Linting." },
+    "@eslint/js": { "scope": "test", "purpose": "ESLint's recommended JavaScript rules." },
+    "typescript-eslint": { "scope": "test", "purpose": "Type-aware lint rules for TypeScript." },
+    "globals": { "scope": "test", "purpose": "Lists of browser and Node globals for ESLint." },
+    "prettier": { "scope": "test", "purpose": "Code formatting check." },
+    "@types/node": { "scope": "build", "purpose": "Type definitions for the Node build, benchmark and test scripts." }
+  }
+}
