@@ -37,8 +37,8 @@ type, a plain board in a thin frame, flat square controls and the five tile colo
 
 - Solver core: same move-optimal breadth-first search, but with compact state keys, an index queue,
   parent pointers instead of copied paths, and pruning of dead squares and 2×2 freeze deadlocks.
-  Results are identical in length (checked by fuzz tests); speed-ups range from 10× to over 2,000×
-  (see README).
+  Results are identical in length (checked by fuzz tests); speed-ups range from 11× (small levels, in the browser) to over 20,000×
+  (core, one level); see README.
 - Cells outside the grid count as walls, so levels no longer have to be fully enclosed.
 - The canvas scales to the screen and renders sharply on high-DPI displays.
 

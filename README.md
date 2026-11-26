@@ -50,6 +50,20 @@ Measured on 2026-11-26 against the **unmodified original code** (kept in [`legac
 
 ¹ Stopped after 120 s.
 
+**Solver core only** (Node 22, `pnpm bench`). Here the original's timer pauses are removed, so this compares the pure algorithms. Median of 7 runs for the new solver, one run for the original:
+
+| Level     | Moves |  Before |  After | Speed-up | States searched, before → after |
+| --------- | ----: | ------: | -----: | -------: | ------------------------------: |
+| classic   |    53 |  656 ms | 2.2 ms |     302× |                  57,995 → 1,758 |
+| warmup    |    18 |  158 ms | 1.2 ms |     133× |                  13,554 → 1,113 |
+| staircase |    34 |  66.0 s | 2.9 ms |  23,107× |                 567,493 → 6,517 |
+| cross     |    38 |  921 ms |  11 ms |      85× |                 71,752 → 18,625 |
+| zigzag    |    55 |   1.1 s |  12 ms |      92× |                 83,924 → 20,037 |
+| mirror    |    21 | 155.5 s | 263 ms |     591× |               553,902 → 224,301 |
+| courtyard |   105 | 632.0 s | 173 ms |   3,655× |             4,161,740 → 254,960 |
+
+The original also needed about 1.5 GB of memory for "courtyard". The CI build job runs the core benchmark on every push and writes the table into the run's summary.
+
 ## Development
 
 Requires Node.js 22.18 or newer and pnpm (`corepack enable` picks the version from `package.json`).
