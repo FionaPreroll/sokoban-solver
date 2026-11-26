@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright spezifisch <spezifisch+git@gmail.com>
+// Copyright Fiona <fipreroll+app@gmail.com>
 
 /** Typed element lookup: fails loudly if the markup and the code disagree. */
 export function byId<T extends HTMLElement>(id: string, type: abstract new () => T): T {

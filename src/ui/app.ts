@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright spezifisch <spezifisch+git@gmail.com>
+// Copyright Fiona <fipreroll+app@gmail.com>
 
 import { initialState, replay, toLurd, type Direction, type GameState } from "../core/game.ts";
 import {

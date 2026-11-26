@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright spezifisch <spezifisch+git@gmail.com>
+// Copyright Fiona <fipreroll+app@gmail.com>
 
 /** Colour themes: CSS custom properties per [data-theme], choice kept in localStorage. */
 

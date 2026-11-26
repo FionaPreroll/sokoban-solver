@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright spezifisch <spezifisch+git@gmail.com>
+// Copyright Fiona <fipreroll+app@gmail.com>
 
 /**
  * Canvas renderer. The tile shapes are the original ones: square walls, a round

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright spezifisch <spezifisch+git@gmail.com>
+// Copyright Fiona <fipreroll+app@gmail.com>
 
 import type { Level } from "../core/level.ts";
 import { DEFAULT_MAX_STATES, type SolveProgress, type SolveResult } from "../core/solver.ts";

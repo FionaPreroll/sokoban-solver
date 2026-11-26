@@ -92,4 +92,4 @@ Commits go straight to `main`. [The CI workflow](.github/workflows/ci.yml) runs 
 
 ## Licence
 
-[GPL-3.0-only](LICENSE). Copyright spezifisch.
+[GPL-3.0-only](LICENSE). Copyright Fiona.

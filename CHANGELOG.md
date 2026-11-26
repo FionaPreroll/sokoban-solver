@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Author and contact (About dialog, copyright headers) are now Fiona <fipreroll+app@gmail.com>.
+
 ## [2.0.0] - 2026-11-26
 
 Complete rewrite in strict TypeScript. The look of the original page is kept: serif

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Sokoban level editor and move-optimal solver that runs in the browser.",
   "license": "GPL-3.0-only",
-  "author": "spezifisch <spezifisch+git@gmail.com>",
+  "author": "Fiona <fipreroll+app@gmail.com>",
   "homepage": "https://fionapreroll.github.io/sokoban-solver/",
   "repository": {
     "type": "git",
