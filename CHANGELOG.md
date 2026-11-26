@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The solver searches over pushes instead of single steps: A* with the walking distance as
+  the cost of each push and the sum of push distances to the nearest targets as lower bound.
+  Solutions still have the minimum number of moves, and levels with more boxes are solved
+  within the state limit. The progress line now shows the current lower bound on the moves.
 - Author and contact (About dialog, copyright headers) are now Fiona <fipreroll+app@gmail.com>.
 - Refined design: crate detail on boxes, icon transport controls, steps joined by a timeline,
   toggle chips for layers, a logo, and a double rule under the header.

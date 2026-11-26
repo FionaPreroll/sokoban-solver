@@ -23,11 +23,11 @@ The colour theme (top right) is remembered in the browser. The CGA theme draws t
 
 ## How the solver works
 
-It is a breadth-first search over (player position, box positions), so the first solution found has the minimum number of moves, exactly like the original version. It is faster because of how the search is done, not because it settles for longer solutions:
+It is an A* search over pushes that still finds the solution with the minimum number of moves, exactly like the original version:
 
-- the board is padded with walls, so there are no bounds checks in the inner loop;
-- a state is a short string of cell indices (player plus sorted boxes);
-- the queue is an index into the node list, and paths are parent pointers instead of copied arrays;
+- a state is the box positions plus the player's square right after a push; walking in between is not searched step by step, one breadth-first search of the player gives the walking distance to every square from which a box can be pushed, and a push costs that distance plus one move;
+- states are taken from a bucket queue in order of moves so far plus a lower bound, the sum of each box's push distance to its nearest target; one push changes that bound by at most one and costs at least one move, so the first solution taken from the queue is move-optimal;
+- the board is padded with walls, so there are no bounds checks in the inner loop, and a state is a short string of cell indices;
 - boxes are never pushed onto dead squares, and pushes that build a 2×2 block of walls and boxes with a box off target are cut.
 
 Both prunings only remove states that cannot lead to a solution, so solution lengths are unchanged. The fuzz tests check this against a deliberately naive reference solver on random levels.

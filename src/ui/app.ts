@@ -351,7 +351,7 @@ export class App {
     this.setResult("Searching…", "");
     this.markStep();
     const job = startSolve(level, (p) => {
-      const text = `${fmtInt(p.expanded)} states · ${String(p.depth)} moves deep`;
+      const text = `${fmtInt(p.expanded)} states · at least ${String(p.depth)} moves`;
       this.ui.progress.textContent = `Searching… ${text}`;
       this.setResult("Searching…", text);
     });
