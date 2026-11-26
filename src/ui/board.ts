@@ -4,10 +4,12 @@
 /**
  * Canvas renderer. The tile shapes are the original ones: square walls, a round
  * player (r = 1/3 cell), an inset square box and a small round target (r = 1/4 cell).
+ * The CGA theme draws pixel-art tiles instead, in a 4:3 screen with a status line.
  */
 
 import { DIRECTION_DELTA, type Direction, type GameState } from "../core/game.ts";
 import type { Level, Tool } from "../core/level.ts";
+import { drawSprite, drawStatusLine, type StatusLine } from "./cga.ts";
 import { isSmallScreen } from "./dom.ts";
 import type { Palette } from "./theme.ts";
 
@@ -26,6 +28,8 @@ export interface BoardScene {
   /** Full solution from the level's start and how many moves are already done. */
   readonly path: { readonly moves: readonly Direction[]; readonly index: number } | null;
   readonly editing: boolean;
+  /** Shown in the CGA theme's status line. */
+  readonly status: StatusLine;
 }
 
 const MIN_CELL = 12;
@@ -50,6 +54,10 @@ export function drawTile(
   palette: Palette,
   tile: { wall: boolean; target: boolean; box: boolean; player: boolean },
 ): void {
+  if (palette.tiles === "pixel") {
+    drawPixelTile(ctx, x, y, cs, palette, tile);
+    return;
+  }
   ctx.fillStyle = tile.wall ? palette.wall : palette.floor;
   ctx.fillRect(x, y, cs, cs);
   if (tile.wall) return;
@@ -98,6 +106,24 @@ export function drawTile(
   }
 }
 
+function drawPixelTile(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  cs: number,
+  palette: Palette,
+  tile: { wall: boolean; target: boolean; box: boolean; player: boolean },
+): void {
+  ctx.fillStyle = palette.floor;
+  ctx.fillRect(x, y, cs, cs);
+  if (tile.wall) drawSprite(ctx, "wall", x, y, cs, palette);
+  else if (tile.box) drawSprite(ctx, tile.target ? "boxOnTarget" : "box", x, y, cs, palette);
+  else {
+    if (tile.target) drawSprite(ctx, "target", x, y, cs, palette);
+    if (tile.player) drawSprite(ctx, "player", x, y, cs, palette);
+  }
+}
+
 const outsideCache = new WeakMap<Level, Uint8Array>();
 
 /** 1 for non-wall cells the player can never reach (boxes do not block, they can move). */
@@ -134,17 +160,19 @@ export function toolTile(tool: Tool | null): { wall: boolean; target: boolean; b
 export class BoardView {
   private readonly canvas: HTMLCanvasElement;
   private readonly frame: HTMLElement;
+  private readonly status: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
   /** Cell size in device pixels. */
   private cell = 40;
   private dpr = 1;
   private last: BoardScene | null = null;
 
-  constructor(canvas: HTMLCanvasElement, frame: HTMLElement) {
+  constructor(canvas: HTMLCanvasElement, frame: HTMLElement, status: HTMLCanvasElement) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D is not available");
     this.canvas = canvas;
     this.frame = frame;
+    this.status = status;
     this.ctx = ctx;
     const ro = new ResizeObserver(() => {
       if (this.last) this.draw(this.last);
@@ -173,8 +201,14 @@ export class BoardView {
   private fit(level: Level): void {
     const style = getComputedStyle(this.frame);
     const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-    const availW = Math.max(100, this.frame.clientWidth - padX);
-    const availH = window.innerHeight * (isSmallScreen() ? 0.36 : 0.7);
+    let availW = Math.max(100, this.frame.clientWidth - padX);
+    let availH = window.innerHeight * (isSmallScreen() ? 0.36 : 0.7);
+    if (this.status.offsetParent !== null) {
+      // CGA screen: the frame is 4:3 by CSS; the board gets what the status line leaves.
+      const margin = parseFloat(style.getPropertyValue("--screen-margin")) || 0;
+      availW = Math.max(40, this.frame.clientWidth - 2 * margin);
+      availH = Math.max(30, this.frame.clientHeight - this.status.offsetHeight - 2 * margin);
+    }
     const dpr = Math.min(3, window.devicePixelRatio || 1);
     const css = Math.max(MIN_CELL, Math.min(MAX_CELL, Math.min(availW / level.width, availH / level.height)));
     this.cell = Math.max(1, Math.floor(css * dpr));
@@ -195,6 +229,11 @@ export class BoardView {
   draw(scene: BoardScene): void {
     this.last = scene;
     const { level, state, palette, layers } = scene;
+    if (this.status.offsetParent !== null) {
+      // Status line first: its height decides how much room the board has.
+      const dpr = Math.min(3, window.devicePixelRatio || 1);
+      drawStatusLine(this.status, scene.status, palette.status, Math.round(this.frame.clientWidth * dpr), dpr);
+    }
     this.fit(level);
     const cs = this.cell;
     const ctx = this.ctx;
@@ -206,7 +245,7 @@ export class BoardView {
         if (outside[i] && !level.target[i] && !state.box[i]) {
           // Empty floor the player can never reach is drawn as page, so the level's
           // outline reads clearly in every theme.
-          ctx.fillStyle = palette.page;
+          ctx.fillStyle = palette.void;
           ctx.fillRect(x * cs, y * cs, cs, cs);
           continue;
         }

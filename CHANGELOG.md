@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CGA theme in the style of DOS-era Sokoban: the four colours of CGA palette 1, pixel-art
+  tiles, a 4:3 screen and a status line (level, moves, pushes, time) in the IBM CGA 8×8 font
+  (bitmaps from `pcface`, GPL-3.0). Covered by pixel tests for the board and the status line.
 - Browser tests for every function, plus checks that nothing on the page moves, resizes or
   overflows while solving, playing, stepping, scrubbing, editing or switching themes
   (element positions and Chromium's layout-shift API), and pixel checks that the board shows

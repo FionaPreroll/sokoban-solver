@@ -51,6 +51,7 @@ try {
     ["night", "Desktop, Night theme"],
     ["paper", "Desktop, Paper theme"],
     ["contrast", "Desktop, High contrast theme"],
+    ["cga", "Desktop, CGA theme"],
   ] as const) {
     const file = `desktop-${theme}.png`;
     await desktop(browser, theme, file);
@@ -72,6 +73,25 @@ try {
     await page.waitForTimeout(1600);
     await page.screenshot({ path: join(outDir, "mobile-solved.png") });
     shots.push({ file: "mobile-solved.png", title: "Mobile, after solving" });
+    await ctx.close();
+  }
+
+  // Mobile in the CGA theme, mid-solution.
+  {
+    const ctx = await browser.newContext({ ...devices["Pixel 7"] });
+    await ctx.addInitScript(() => {
+      localStorage.setItem("sokoban-solver:theme", "cga");
+    });
+    const page = await ctx.newPage();
+    await page.goto(base);
+    await page.locator("#solve").scrollIntoViewIfNeeded();
+    await solveAndStep(page, 20);
+    await page.locator("#solve").evaluate((el) => {
+      (el as HTMLElement).blur();
+    });
+    await page.waitForTimeout(1600);
+    await page.screenshot({ path: join(outDir, "mobile-cga.png") });
+    shots.push({ file: "mobile-cga.png", title: "Mobile, CGA theme" });
     await ctx.close();
   }
 

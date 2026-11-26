@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  *
  * The look keeps the bones of the original page: serif type, a plain canvas in a thin
- * ink frame, flat square controls and the five tile colours. Themes only swap colours.
+ * ink frame, flat square controls and the five tile colours. Themes swap colours; the
+ * CGA theme also swaps the type and turns the board into a 4:3 screen with a status line.
  */
 
 :root,
@@ -75,6 +76,33 @@
   color-scheme: dark;
 }
 
+/* CGA palette 1, high intensity: black, cyan, magenta, white. */
+[data-theme="cga"] {
+  --page: #000000;
+  --ink: #ffffff;
+  --muted: #55ffff;
+  --rule: #55ffff;
+  --wall: #ff55ff;
+  --floor: #55ffff;
+  --void: #55ffff;
+  --grid: rgb(0 0 0 / 0.35);
+  --line: #555555;
+  --player: #000000;
+  --box: #ffffff;
+  --target: #ff55ff;
+  --path: #ffffff;
+  --dead: #000000;
+  --warn: #ff55ff;
+  --focus: #ff55ff;
+  --flash: #ff55ff;
+  --tiles: pixel;
+  --status-bg: #000000;
+  --status-ink: #ffffff;
+  --status-accent: #ff55ff;
+  --body-font: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: dark;
+}
+
 *,
 *::before,
 *::after {
@@ -82,9 +110,10 @@
 }
 
 html {
+  --body-font: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   background: var(--page);
   color: var(--ink);
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  font-family: var(--body-font);
   font-size: 17px;
   line-height: 1.45;
   -webkit-text-size-adjust: 100%;
@@ -237,7 +266,7 @@ svg {
 }
 
 .theme-swatch input:focus-visible + .chips {
-  outline: 3px solid var(--player);
+  outline: 3px solid var(--focus, var(--player));
   outline-offset: 2px;
 }
 
@@ -336,7 +365,7 @@ textarea {
 }
 
 :focus-visible {
-  outline: 3px solid var(--player);
+  outline: 3px solid var(--focus, var(--player));
   outline-offset: 2px;
 }
 
@@ -458,7 +487,7 @@ textarea {
 .tool input:focus-visible ~ canvas {
   position: relative;
   z-index: 2;
-  outline: 3px solid var(--player);
+  outline: 3px solid var(--focus, var(--player));
 }
 
 /* One fixed line, so messages never push the sections below. */
@@ -466,7 +495,7 @@ textarea {
   height: 1.4em;
   margin: 2px 0 6px;
   font-size: 0.9rem;
-  color: var(--dead);
+  color: var(--warn, var(--dead));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -508,6 +537,41 @@ textarea {
 #board {
   display: block;
   touch-action: none;
+}
+
+.status-line {
+  display: none;
+}
+
+/*
+ * CGA: the frame is a 4:3 screen (320×200, so pixels are 1.2 times as tall as wide).
+ * The status line is 8 pixel rows at the bottom; board.ts sizes it.
+ */
+[data-theme="cga"] .board-frame {
+  --screen-margin: 8px;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  place-items: center;
+  padding: 0;
+  border-color: var(--floor);
+  background: var(--floor);
+}
+
+[data-theme="cga"] .status-line {
+  display: block;
+  width: 100%;
+  background: var(--status-bg);
+}
+
+[data-theme="cga"] .tool {
+  font-size: 0.7rem;
+  letter-spacing: -0.04em;
+}
+
+[data-theme="cga"] .bm-brace {
+  stroke: #000000;
 }
 
 .editing #board {
@@ -616,7 +680,7 @@ textarea {
   left: calc(0.875rem - 0.5px);
   top: 2.1rem;
   bottom: 6px;
-  border-left: 1px solid var(--grid);
+  border-left: 1px solid var(--line, var(--grid));
 }
 
 .step:last-child::before {
@@ -673,7 +737,7 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-runnable-track {
   height: 3px;
-  background: linear-gradient(90deg, var(--ink) 0 var(--pct), var(--grid) var(--pct));
+  background: linear-gradient(90deg, var(--ink) 0 var(--pct), var(--line, var(--grid)) var(--pct));
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -688,7 +752,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 input[type="range"]::-moz-range-track {
   height: 3px;
-  background: var(--grid);
+  background: var(--line, var(--grid));
 }
 
 input[type="range"]::-moz-range-progress {
@@ -735,7 +799,7 @@ input[type="range"]:disabled {
   height: 34px;
   padding: 0 6px;
   font-variant-numeric: tabular-nums;
-  border-left: 1px solid var(--grid);
+  border-left: 1px solid var(--line, var(--grid));
 }
 
 .segmented label:first-child span {
@@ -748,7 +812,7 @@ input[type="range"]:disabled {
 }
 
 .segmented input:focus-visible + span {
-  outline: 3px solid var(--player);
+  outline: 3px solid var(--focus, var(--player));
   outline-offset: -3px;
 }
 
@@ -770,7 +834,7 @@ input[type="range"]:disabled {
   height: 5.6em;
   margin: 0;
   padding: 6px 9px;
-  border: 1px solid var(--grid);
+  border: 1px solid var(--line, var(--grid));
   overflow-y: auto;
   font-size: 0.85rem;
   line-height: 1.55;
@@ -780,7 +844,7 @@ input[type="range"]:disabled {
 }
 
 .moves .placeholder {
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-family: var(--body-font);
   font-style: italic;
   word-break: normal;
 }
@@ -839,7 +903,7 @@ input[type="range"]:disabled {
 }
 
 .chip input:focus-visible + span {
-  outline: 3px solid var(--player);
+  outline: 3px solid var(--focus, var(--player));
   outline-offset: 2px;
 }
 

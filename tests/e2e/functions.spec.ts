@@ -314,6 +314,7 @@ test.describe("preferences", () => {
       ["Night", "night"],
       ["Paper", "paper"],
       ["High contrast", "contrast"],
+      ["CGA", "cga"],
       ["Classic", "classic"],
     ] as const) {
       await page.getByRole("radio", { name: `${name} theme` }).check({ force: true });

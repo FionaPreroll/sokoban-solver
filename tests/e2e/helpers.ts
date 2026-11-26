@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /** Shared helpers for the browser tests. */
+import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { fromLurd, replay, type GameState } from "../../src/core/game.ts";
 import { parseLevel, type Level } from "../../src/core/level.ts";
@@ -196,4 +197,68 @@ export async function boxOf(locator: Locator): Promise<Rect> {
 
 export function isMobile(testInfo: TestInfo): boolean {
   return testInfo.project.name === "mobile";
+}
+
+/** The IBM CGA 8×8 glyphs, read from the same package the app draws with. */
+function cgaGlyphs(): number[][] {
+  const source = readFileSync(
+    new URL("../../node_modules/pcface/out/oldschool-cga-8x8/fontlist.js", import.meta.url),
+    "utf8",
+  );
+  return Array.from(source.matchAll(/\[((?:0x[0-9a-f]{2},\s*){7}0x[0-9a-f]{2})\]/gi), (m) =>
+    (m[1] ?? "").split(",").map((h) => parseInt(h, 16)),
+  );
+}
+
+/**
+ * Reads the CGA status line back from its canvas: every glyph pixel is sampled and each 8×8 cell is matched against the font. Unknown cells become "?".
+ */
+export async function readStatusLine(page: Page): Promise<string> {
+  return page.evaluate((glyphs) => {
+    const canvas = document.getElementById("status-line") as HTMLCanvasElement;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    const native = 320;
+    const width = canvas.width;
+    const sx = width / native >= 2 ? Math.floor(width / native) : width / native;
+    const sy = Number.isInteger(sx) ? Math.round(sx * 1.2) : sx * 1.2;
+    const left = Math.floor((width - native * sx) / 2);
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const bg = [data[0], data[1], data[2]];
+    const lit = (px: number, py: number): boolean => {
+      // First device pixel of the glyph pixel: always inside it, even when it is 1 wide.
+      const x = left + Math.floor(px * sx);
+      const y = Math.floor(py * sy);
+      const k = (y * canvas.width + x) * 4;
+      return [0, 1, 2].some((c) => Math.abs((data[k + c] ?? 0) - (bg[c] ?? 0)) > 40);
+    };
+    const special: Record<number, string> = { 0xdd: "▌", 0xde: "▐", 0xb3: "│" };
+    let text = "";
+    for (let col = 0; col < 40; col++) {
+      const rows: number[] = [];
+      for (let y = 0; y < 8; y++) {
+        let bits = 0;
+        for (let x = 0; x < 8; x++) if (lit(col * 8 + x, y)) bits |= 0x80 >> x;
+        rows.push(bits);
+      }
+      const key = rows.join(",");
+      let ch = "?";
+      for (const code of [0x20, ...Array.from({ length: 95 }, (_, i) => i + 0x21), 0xdd, 0xde, 0xb3]) {
+        if (glyphs[code]?.join(",") === key) {
+          ch = special[code] ?? String.fromCharCode(code);
+          break;
+        }
+      }
+      text += ch;
+    }
+    return text;
+  }, cgaGlyphs());
+}
+
+/** Switches to a theme before the page's scripts run (as if it had been chosen earlier). */
+export async function useTheme(page: Page, theme: string): Promise<void> {
+  await page.evaluate((t) => {
+    localStorage.setItem("sokoban-solver:theme", t);
+  }, theme);
+  await page.reload();
 }

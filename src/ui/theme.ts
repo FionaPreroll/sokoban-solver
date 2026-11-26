@@ -10,6 +10,7 @@ export const THEMES = [
   { id: "night", name: "Night" },
   { id: "paper", name: "Paper" },
   { id: "contrast", name: "High contrast" },
+  { id: "cga", name: "CGA" },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
@@ -55,6 +56,12 @@ export interface Palette {
   readonly target: string;
   readonly path: string;
   readonly dead: string;
+  /** Floor the player can never reach (defaults to the page colour). */
+  readonly void: string;
+  /** "pixel" draws the CGA theme's 16×16 pixel-art tiles; anything else the vector tiles. */
+  readonly tiles: string;
+  /** Status line under the board (CGA theme only). */
+  readonly status: { readonly background: string; readonly text: string; readonly accent: string };
 }
 
 export function readPalette(): Palette {
@@ -71,6 +78,9 @@ export function readPalette(): Palette {
     target: v("target"),
     path: v("path"),
     dead: v("dead"),
+    void: v("void") || v("page"),
+    tiles: v("tiles"),
+    status: { background: v("status-bg"), text: v("status-ink"), accent: v("status-accent") },
   };
 }
 

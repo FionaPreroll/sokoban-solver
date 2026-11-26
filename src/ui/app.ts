@@ -18,6 +18,7 @@ import { DEFAULT_PRESET, LEVEL_PRESETS } from "../core/levels.ts";
 import { deadSquares, type SolveResult } from "../core/solver.ts";
 import { setupAboutDialog } from "./about.ts";
 import { BoardView, drawTile, toolTile, type Layers } from "./board.ts";
+import type { StatusLine } from "./cga.ts";
 import { byId, el, fmtInt, fmtMs, isSmallScreen, prefersReducedMotion } from "./dom.ts";
 import { startSolve, type SolveJob } from "./solver-client.ts";
 import { applyTheme, initialTheme, mountThemePicker, readPalette, saveTheme, type Palette } from "./theme.ts";
@@ -129,7 +130,11 @@ export class App {
 
     this.level = loadStoredLevel() ?? parseLevel(DEFAULT_PRESET.rows);
     this.dead = deadSquares(this.level);
-    this.board = new BoardView(byId("board", HTMLCanvasElement), byId("board-frame", HTMLElement));
+    this.board = new BoardView(
+      byId("board", HTMLCanvasElement),
+      byId("board-frame", HTMLElement),
+      byId("status-line", HTMLCanvasElement),
+    );
 
     this.buildPresetSelect();
     this.buildTools();
@@ -477,6 +482,9 @@ export class App {
         attrs: { type: "radio", name: "speed", value: String(v), "aria-label": `${String(v)} moves per second` },
       });
       input.checked = v === DEFAULT_SPEED;
+      input.addEventListener("change", () => {
+        this.render(); // the status line's clock depends on the speed
+      });
       this.ui.speed.append(el("label", {}, [input, el("span", { text: String(v) })]));
     }
     this.ui.copyMoves.addEventListener("click", () => {
@@ -639,6 +647,20 @@ export class App {
     }
   }
 
+  /** Moves and pushes done so far; the clock is the time playback takes to get here. */
+  private statusLine(): StatusLine {
+    const presetIndex = LEVEL_PRESETS.findIndex((p) => p.id === this.ui.preset.value);
+    const s = this.solution;
+    let pushes = 0;
+    for (let k = 0; s && k < this.index; k++) if (s.pushes[k]) pushes++;
+    return {
+      level: presetIndex >= 0 ? presetIndex + 1 : null,
+      moves: s ? this.index : 0,
+      pushes,
+      seconds: s ? this.index / this.speed() : 0,
+    };
+  }
+
   private render(): void {
     const s = this.solution;
     const state = s?.states[this.index] ?? initialState(this.level);
@@ -650,6 +672,7 @@ export class App {
       dead: this.dead,
       path: s ? { moves: s.moves, index: this.index } : null,
       editing: this.tool !== null,
+      status: this.statusLine(),
     });
     if (s) {
       const n = s.moves.length;

@@ -14,6 +14,7 @@ import {
   rects,
   solve,
   startShiftRecorder,
+  useTheme,
   type Rect,
 } from "./helpers.ts";
 
@@ -21,6 +22,7 @@ import {
 const FIXED = [
   "#board",
   ".board-frame",
+  "#status-line",
   "#result",
   "#tools",
   "#solve",
@@ -47,7 +49,7 @@ const FIXED = [
  * changes by design. For these only the size is compared; their position on screen
  * is checked separately with the scroll position held still.
  */
-const STICKY = new Set(["#board", ".board-frame", "#result"]);
+const STICKY = new Set(["#board", ".board-frame", "#status-line", "#result"]);
 
 async function snapshot(page: Page): Promise<Record<string, Rect | null>> {
   const all = await rects(page, FIXED);
@@ -83,86 +85,95 @@ test.afterEach(() => {
   expect(errors).toEqual([]);
 });
 
-test("nothing moves while solving, playing, stepping, scrubbing and toggling", async ({ page }, testInfo) => {
-  const mobile = isMobile(testInfo);
-  // Desktop: tall enough that Playwright never has to scroll to reach a control.
-  if (!mobile) await page.setViewportSize({ width: 1280, height: 1500 });
-  await page.locator("summary", { hasText: "Level as text" }).click(); // closed/open is the user's choice
-  await startShiftRecorder(page);
-  const base = await snapshot(page);
-  const check = async (step: string): Promise<void> => {
-    expect(await snapshot(page), `layout changed after: ${step}`).toEqual(base);
-    await expectNoHorizontalOverflow(page);
-  };
+for (const theme of ["classic", "cga"] as const) {
+  test(`nothing moves while solving, playing, stepping, scrubbing and toggling (${theme} theme)`, async ({
+    page,
+  }, testInfo) => {
+    const mobile = isMobile(testInfo);
+    if (theme !== "classic") await useTheme(page, theme);
+    // Desktop: tall enough that Playwright never has to scroll to reach a control.
+    if (!mobile) await page.setViewportSize({ width: 1280, height: 1500 });
+    await page.locator("summary", { hasText: "Level as text" }).click(); // closed/open is the user's choice
+    await startShiftRecorder(page);
+    const base = await snapshot(page);
+    const check = async (step: string): Promise<void> => {
+      expect(await snapshot(page), `layout changed after: ${step}`).toEqual(base);
+      await expectNoHorizontalOverflow(page);
+    };
 
-  await page.locator("#solve").click();
-  await check("starting the search");
-  await expect(page.locator("#copy-moves")).toBeEnabled({ timeout: 30_000 });
-  await page.waitForTimeout(1500); // let the result highlight finish
-  await check("the solution arriving");
+    await page.locator("#solve").click();
+    await check("starting the search");
+    await expect(page.locator("#copy-moves")).toBeEnabled({ timeout: 30_000 });
+    await page.waitForTimeout(1500); // let the result highlight finish
+    await check("the solution arriving");
 
-  // From here on the app does not scroll by itself, so the sticky board must not move on screen either.
-  // (On mobile the board is now stuck to the top of the screen and must stay there.)
-  const sticky = await stickyOnScreen(page);
-  const check2 = async (step: string): Promise<void> => {
-    await check(step);
-    expect(await stickyOnScreen(page), `board moved on screen after: ${step}`).toBe(sticky);
-  };
-  await page.locator("#play").click();
-  await page.waitForTimeout(400);
-  await check2("playing");
-  await page.locator("#play").click();
-  await check2("pausing (button shows Resume)");
-  for (const id of ["#next", "#next", "#prev", "#end", "#reset"]) {
-    await page.locator(id).click();
-    await check2(`clicking ${id}`);
-  }
-  await page.locator("#scrub").focus();
-  await page.keyboard.press("End");
-  await check2("scrubbing to the end (Solved state)");
-  for (const speed of ["32", "1", "4"]) {
-    await page.getByRole("radio", { name: `${speed} moves per second` }).check({ force: true });
-    await check2(`speed ${speed}`);
-  }
-  for (const id of ["#layer-path", "#layer-dead", "#layer-player"]) {
-    await page.locator(id).click({ force: true });
-    await check2(`toggling ${id}`);
-    await page.locator(id).click({ force: true });
-  }
-  for (const theme of ["Night", "Paper", "High contrast", "Classic"]) {
-    // Clicked via the DOM so Playwright does not scroll the header into view.
-    await page.getByRole("radio", { name: `${theme} theme` }).evaluate((el) => {
-      (el as HTMLInputElement).click();
+    // From here on the app does not scroll by itself, so the sticky board must not move on screen either.
+    // (On mobile the board is now stuck to the top of the screen and must stay there.)
+    const sticky = await stickyOnScreen(page);
+    const check2 = async (step: string): Promise<void> => {
+      await check(step);
+      expect(await stickyOnScreen(page), `board moved on screen after: ${step}`).toBe(sticky);
+    };
+    await page.locator("#play").click();
+    await page.waitForTimeout(400);
+    await check2("playing");
+    await page.locator("#play").click();
+    await check2("pausing (button shows Resume)");
+    for (const id of ["#next", "#next", "#prev", "#end", "#reset"]) {
+      await page.locator(id).click();
+      await check2(`clicking ${id}`);
+    }
+    await page.locator("#scrub").focus();
+    await page.keyboard.press("End");
+    await check2("scrubbing to the end (Solved state)");
+    for (const speed of ["32", "1", "4"]) {
+      await page.getByRole("radio", { name: `${speed} moves per second` }).check({ force: true });
+      await check2(`speed ${speed}`);
+    }
+    for (const id of ["#layer-path", "#layer-dead", "#layer-player"]) {
+      await page.locator(id).click({ force: true });
+      await check2(`toggling ${id}`);
+      await page.locator(id).click({ force: true });
+    }
+    // The CGA theme has its own type and a 4:3 screen, so switching to or from it moves
+    // things on purpose. The other themes only swap colours.
+    if (theme === "classic") {
+      for (const name of ["Night", "Paper", "High contrast", "Classic"]) {
+        // Clicked via the DOM so Playwright does not scroll the header into view.
+        await page.getByRole("radio", { name: `${name} theme` }).evaluate((el) => {
+          (el as HTMLInputElement).click();
+        });
+        await check2(`theme ${name}`);
+      }
+    }
+    for (const tool of ["Wall", "Floor", "Player", "Box", "Target", "Off"]) {
+      await page.locator("label.tool", { hasText: tool }).click();
+      await check2(`choosing the ${tool} tool`);
+    }
+    await page.getByRole("button", { name: "About", exact: true }).evaluate((el) => {
+      (el as HTMLButtonElement).click();
     });
-    await check2(`theme ${theme}`);
-  }
-  for (const tool of ["Wall", "Floor", "Player", "Box", "Target", "Off"]) {
-    await page.locator("label.tool", { hasText: tool }).click();
-    await check2(`choosing the ${tool} tool`);
-  }
-  await page.getByRole("button", { name: "About", exact: true }).evaluate((el) => {
-    (el as HTMLButtonElement).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await check2("opening and closing About");
+
+    // Playing to the end, the moves list scrolls inside its box, never the page.
+    await page.locator("#reset").click();
+    await page.getByRole("radio", { name: "32 moves per second" }).check({ force: true });
+    const scrollY = await page.evaluate(() => window.scrollY);
+    await page.locator("#play").click();
+    await expect(page.locator("#result-label")).toHaveText(/^Solved in/, { timeout: 10_000 });
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollY);
+    await check2("playing to the end");
+
+    if (!mobile) {
+      // On desktop nothing is allowed to shift at all, not even right after input.
+      // (On mobile the page scrolls to the result on purpose, which is not a shift.)
+      const shifts = await recordedShifts(page);
+      expect(shifts, JSON.stringify(shifts)).toEqual([]);
+    }
   });
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await check2("opening and closing About");
-
-  // Playing to the end, the moves list scrolls inside its box, never the page.
-  await page.locator("#reset").click();
-  await page.getByRole("radio", { name: "32 moves per second" }).check({ force: true });
-  const scrollY = await page.evaluate(() => window.scrollY);
-  await page.locator("#play").click();
-  await expect(page.locator("#result-label")).toHaveText(/^Solved in/, { timeout: 10_000 });
-  expect(await page.evaluate(() => window.scrollY)).toBe(scrollY);
-  await check2("playing to the end");
-
-  if (!mobile) {
-    // On desktop nothing is allowed to shift at all, not even right after input.
-    // (On mobile the page scrolls to the result on purpose, which is not a shift.)
-    const shifts = await recordedShifts(page);
-    expect(shifts, JSON.stringify(shifts)).toEqual([]);
-  }
-});
+}
 
 test("hovering and pressing controls does not move anything", async ({ page }, testInfo) => {
   test.skip(isMobile(testInfo), "no hover on touch screens");
